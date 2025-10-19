@@ -1,160 +1,42 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Stack } from '@chakra-ui/react';
-import { webComUtils } from '@/utils';
+import { useHandDetection } from '@/hooks/useHandDetection';
+import { useHandLandmarker } from '@/hooks/useHandLandmarker';
+import { useEffect, useRef, useState } from 'react';
+import { runModelUtils } from '@/utils';
+import { MetadataType } from '@/type';
+import { InferenceSession } from 'onnxruntime-web';
 
 export default function HandWebcamDetector() {
-  const videoRef = useRef<HTMLVideoElement | null>(null); // Webカメラの映像
-  const canvasRef = useRef<HTMLCanvasElement | null>(null); // 推論結果（手のランドマークなど）を描画
-  const landmarkerRef = useRef<any>(null); // 推論モデル（HandLandmarker）のインスタンス
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // step0: idle
+  // step1: isRunningがtrueでSTEP1に切り替わる。「今日の気分を５段階で表してね。5が最も調子が良いよ」というテキストがcanvasに表示される
+  // step3: ハンドサインを検知後、クッキーに保存。今日の気分を記録しました（finish）
+  const handsignModelRef = useRef<InferenceSession | null>(null);
+  const metaDataRef = useRef<MetadataType | null>(null);
+  const [step, setStep] = useState<'IDLE' | 'STEP1' | 'FINISH'>('IDLE');
 
-  const rafRef = useRef<number | null>(null); // ループ用の requestAnimationFrame ID
-  const [isRunning, setIsRunning] = useState(false);
-  const [ready, setReady] = useState(false);
-  const runningModeRef = useRef<'IMAGE' | 'VIDEO'>('IMAGE');
+  const { landmarkerRef, ready, changeRunningMode } = useHandLandmarker({ canvasRef });
+  const { videoRef, isRunning, handleOnCamera, handleOffCamera } = useHandDetection({
+    landmarkerRef,
+    ready,
+    canvasRef,
+    handsignModelRef,
+    metaDataRef,
+    changeRunningMode,
+  });
 
-  // HandLandmarker の読み込み
+  // モデルのロード
   useEffect(() => {
-    let mounted = true;
     (async () => {
       try {
-        // 初回は IMAGE モードのみ可能
-        const lm = await webComUtils.loadHandLandmarker('IMAGE');
-        if (mounted) {
-          landmarkerRef.current = lm;
-          setReady(true);
-        }
+        handsignModelRef.current = await runModelUtils.createModel();
+        const metadata = await runModelUtils.loadMetadata();
+        metaDataRef.current = metadata;
       } catch (e) {
         console.error('Failed to load HandLandmarker', e);
       }
     })();
-    return () => {
-      mounted = false;
-    };
   }, []);
-
-  // videoがON時のループ処理
-  const predict = () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const lm = landmarkerRef.current;
-    if (!video || !canvas || !lm) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const ts = performance.now();
-    const results = lm.detectForVideo(video, ts);
-
-    ctx.save();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (results?.landmarks?.length) {
-      console.log(results.landmarks);
-      webComUtils.drawHands(ctx, results.landmarks);
-    }
-    ctx.restore();
-
-    rafRef.current = requestAnimationFrame(predict);
-  };
-
-  // isRunning=true(ループ開始時)の effect
-  useEffect(() => {
-    if (!isRunning) return;
-    rafRef.current = requestAnimationFrame(predict);
-    return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    };
-  }, [isRunning, predict]);
-
-  // アンマウント時の最終クリーンアップも追加
-  useEffect(() => {
-    return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-      try {
-        landmarkerRef.current?.close?.();
-      } catch {}
-      if (videoRef.current) {
-        try {
-          webComUtils.stopStreamedVideo(videoRef.current);
-        } catch {}
-      }
-    };
-  }, []);
-
-  // video再生開始
-  const handleOnCamera = async () => {
-    if (!webComUtils.hasGetUserMedia() || !ready) return;
-    if (!videoRef.current || !canvasRef.current) return;
-
-    try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-
-      // 1) ストリームを取得して video にセット
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: false,
-      });
-      video.srcObject = mediaStream;
-
-      // 2) メタデータ（＝解像度）が読まれるのを待つ
-      await new Promise<void>((resolve) => {
-        const onLoaded = () => {
-          video.removeEventListener('loadedmetadata', onLoaded);
-          resolve();
-        };
-        video.addEventListener('loadedmetadata', onLoaded);
-      });
-
-      // 3) 再生開始
-      await video.play();
-
-      // 4) canvas の描画解像度・見た目サイズを video に合わせる
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.style.width = `${video.videoWidth}px`;
-      canvas.style.height = `${video.videoHeight}px`;
-
-      // 5) 検出器をVIDEOモードに戻す
-      if (runningModeRef.current === 'IMAGE') {
-        console.log('VIDEOモードに変更');
-        runningModeRef.current = 'VIDEO';
-        await landmarkerRef.current.setOptions({ runningMode: 'VIDEO' });
-      }
-
-      // ループ開始
-      setIsRunning(true);
-    } catch (e) {
-      console.error('Failed to start webcam', e);
-      setIsRunning(false);
-    }
-  };
-
-  // 停止処理
-  const handleOffCamera = async () => {
-    setIsRunning(false);
-    // 1) アニメーションループ停止
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-
-    // 2) video停止 & ストリーム解放
-    if (videoRef.current) {
-      try {
-        videoRef.current.pause();
-        webComUtils.stopStreamedVideo(videoRef.current);
-      } catch (e) {
-        console.error('Failed to stop webcam', e);
-      }
-    }
-    // 3) 検出器をIMAGEモードに戻す
-    if (runningModeRef.current === 'VIDEO') {
-      runningModeRef.current = 'IMAGE';
-      await landmarkerRef.current.setOptions({ runningMode: 'IMAGE' });
-    }
-  };
 
   return (
     <Stack spaceY={4} alignItems="center">

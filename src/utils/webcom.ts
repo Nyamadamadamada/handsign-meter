@@ -1,8 +1,6 @@
-export { loadHandLandmarker, drawHands, hasGetUserMedia, stopStreamedVideo };
+export { loadHandLandmarker, drawHands, hasGetUserMedia, stopStreamedVideo, warmUpHandLandmarker, fitSizeCanvas };
 
 import { HandLandmarker, FilesetResolver, DrawingUtils, NormalizedLandmark } from '@mediapipe/tasks-vision';
-import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils';
-import { HAND_CONNECTIONS } from '@mediapipe/hands';
 // 描画スタイル
 const connectorsColor = '#00FF00';
 const connectorsWidth = 5;
@@ -22,11 +20,11 @@ async function loadHandLandmarker(runningMode: 'IMAGE' | 'VIDEO' = 'IMAGE') {
 
   const handLandmarker = await HandLandmarker.createFromOptions(vision, {
     baseOptions: {
-      modelAssetPath: '/handsign-meter/models/hand_landmarker.task',
-      //   delegate: 'CPU',
+      modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+      // modelAssetPath: '/handsign-meter/models/hand_landmarker.task', // ローカルに置く場合（モデルはgoogleからダウンロードしてください。）
     },
     runningMode,
-    numHands: 2,
+    numHands: 1, // 片手のみ検出
   });
   return handLandmarker;
 }
@@ -72,3 +70,51 @@ const stopStreamedVideo = (videoElem: HTMLMediaElement) => {
   // Safari/iOSの復帰不具合回避（黒画面に戻す）
   videoElem.load();
 };
+
+/**
+ * 手のランドマークモデルのウォームアップ推論
+ * https://developers.googleblog.com/ja/7-dos-and-donts-of-using-ml-on-the-web-with-mediapipe/
+ */
+const warmUpHandLandmarker = async (landmarker: HandLandmarker, canvas: HTMLCanvasElement) => {
+  const width = 1;
+  const height = 1;
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+    ctx.fillRect(0, 0, width, height);
+  }
+  landmarker.detect(canvas);
+};
+
+/**
+ * canvasサイズをvideoサイズに合わせる
+ * @param canvas HTMLCanvasElement
+ * @param video HTMLVideoElement
+ * void
+ */
+const fitSizeCanvas = (canvas: HTMLCanvasElement, video: HTMLVideoElement) => {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.style.width = `${video.videoWidth}px`;
+  canvas.style.height = `${video.videoHeight}px`;
+};
+
+/** Webカメラ用のMediaStreamを作成
+ * @returns {Promise<MediaStream>}
+ */
+export async function createMediaStream(): Promise<MediaStream> {
+  const mediaStream = navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: 'user', // フロントカメラを指定
+      width: { min: 360, ideal: 640, max: 640 },
+      height: { min: 240, ideal: 480, max: 480 },
+      // https://developer.mozilla.org/ja/docs/Web/API/MediaDevices/getUserMedia
+      frameRate: { ideal: 20, max: 30 }, // FPSを抑えて負荷軽減
+    },
+    audio: false,
+  });
+  return mediaStream;
+}
