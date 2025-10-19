@@ -1,0 +1,14 @@
+{
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true
+  },
+  "editor.formatOnSave": true,
+  // デフォルトのフォーマッターとして選択
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // 設定ファイルがプロジェクトのルートディレクトリに存在する場合にのみ動作します。
+  "prettier.requireConfig": true,
+  // 設定ファイルの名前と場所
+  "prettier.configPath": ".prettierrc.cjs",
+  "editor.codeActionsOnSave": ["source.addMissingImports"]
+}

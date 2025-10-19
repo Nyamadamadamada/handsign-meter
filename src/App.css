@@ -1,0 +1,80 @@
+:root {
+  background-color: #d71b27;
+}
+.table {
+  display: inline;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.table th,
+.table td {
+  padding: 4px 0;
+  width: 200px;
+  text-align: center;
+}
+
+.table th {
+  font-weight: bold;
+}
+
+.table tr:nth-child(odd) {
+  background-color: #eee;
+}
+
+.is-selected {
+  color: red;
+}
+
+/*# sourceMappingURL=App.css.map */
+
+/* 基本: スマホ(狭い画面)は縦並び */
+.stack {
+  display: flex;
+  flex-direction: column; /* SP: column */
+  gap: 20px; /* 任意の余白 */
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 768px以上(PC/タブレット横)で横並びに切り替え */
+@media (min-width: 768px) {
+  .stack {
+    flex-direction: row; /* PC: row */
+  }
+}
+
+/* 見た目確認用(任意) */
+.item {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.none {
+  display: none;
+}
+
+.absolute {
+  position: absolute;
+}
+
+#webcam {
+  clear: both;
+  display: block;
+  transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
+  -moz-transform: rotateY(180deg);
+}
+
+#output_canvas {
+  z-index: 10;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  pointer-events: none;
+  transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
+  -moz-transform: rotateY(180deg);
+}
