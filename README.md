@@ -1,13 +1,35 @@
-# hansdign-meter
+# 今日の気分を５本指で表現しよう！
 
-やること
+<img src="./output.gif" width="70%" />
 
-ハンドサインモデルを onnx に変換
-onnx が推論結果を出せるようにする
+## 環境構築
 
-結果を canvas に表示
+```terminal
+git clone https://github.com/Nyamadamadamada/handsign-meter.git
+cd handsign-meter
+npm install
+```
 
-step ごとの文字を出す。
+## デプロイの方法
+
+1. `main`ブランチに最新のコードをマージ
+2. `npm run build`を実行
+3. push 後にタグをつける
+4. GitHub Workflows が発火し、GitHubPages にデプロイされる
+
+※ タグは`v0.0.1`など始めに`v`をつけること。
+
+```bash
+# タグの例
+git tag -a v0.0.1 -m "画像を表示されるように" HEAD
+git push origin --tags
+```
+
+### 初回だけやること
+
+GitHub > Environments > Configure github-pages の
+
+「Deployment branches and tags」を「No restriction」にする。
 
 ## 参照
 

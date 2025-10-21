@@ -1,6 +1,3 @@
-import { useEffect, useRef, useState, useCallback, createRef } from 'react';
-import { InferenceSession } from 'onnxruntime-web';
-
 import { Heading, Container, Stack } from '@chakra-ui/react';
 
 import Futter from './components/Futter';

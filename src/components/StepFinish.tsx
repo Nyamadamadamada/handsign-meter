@@ -1,5 +1,5 @@
-import { Stack, Image, Text } from '@chakra-ui/react';
-import { StepType, TodayModeType } from '@/type';
+import { Stack, Text } from '@chakra-ui/react';
+import { TodayModeType } from '@/type';
 
 type Props = {
   todayMode: TodayModeType | null;

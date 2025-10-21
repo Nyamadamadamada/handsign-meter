@@ -24,7 +24,6 @@ export default function HandWebcamDetector() {
     handsignModelRef,
     metaDataRef,
     changeRunningMode,
-    step,
     setStep,
     todayMode,
     setTodayMode,

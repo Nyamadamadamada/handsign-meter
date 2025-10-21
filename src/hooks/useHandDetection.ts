@@ -3,7 +3,6 @@ import { mathUtils, runModelUtils, webComUtils } from '@/utils';
 import { isTodayModeType, MetadataType, StepType, TodayModeType } from '@/type';
 import { preprocessFromLandmarks } from '@/utils/handsign';
 import { InferenceSession } from 'onnxruntime-web';
-import { prev } from '@zag-js/utils';
 
 type UseHandDetectionType = {
   landmarkerRef: React.MutableRefObject<any>;
@@ -12,7 +11,6 @@ type UseHandDetectionType = {
   handsignModelRef: React.MutableRefObject<InferenceSession | null>;
   metaDataRef: React.MutableRefObject<MetadataType | null>;
   changeRunningMode: (mode: 'IMAGE' | 'VIDEO') => Promise<void>;
-  step: StepType;
   setStep: React.Dispatch<React.SetStateAction<StepType>>;
   todayMode: TodayModeType | null;
   setTodayMode: React.Dispatch<React.SetStateAction<TodayModeType | null>>;
@@ -30,7 +28,6 @@ export function useHandDetection({
   handsignModelRef,
   metaDataRef,
   changeRunningMode,
-  step,
   setStep,
   todayMode,
   setTodayMode,
