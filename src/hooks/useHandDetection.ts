@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { mathUtils, runModelUtils, webComUtils } from '@/utils';
-import { MetadataType } from '@/type';
+import { MetadataType, StepType, TodayModeType } from '@/type';
 import { preprocessFromLandmarks } from '@/utils/handsign';
 import { InferenceSession } from 'onnxruntime-web';
 
@@ -11,6 +11,10 @@ type UseHandDetectionType = {
   handsignModelRef: React.MutableRefObject<InferenceSession | null>;
   metaDataRef: React.MutableRefObject<MetadataType | null>;
   changeRunningMode: (mode: 'IMAGE' | 'VIDEO') => Promise<void>;
+  step: StepType;
+  setStep: React.Dispatch<React.SetStateAction<StepType>>;
+  todayMode: TodayModeType | null;
+  setTodayMode: React.Dispatch<React.SetStateAction<TodayModeType | null>>;
 };
 
 /**
@@ -25,17 +29,49 @@ export function useHandDetection({
   handsignModelRef,
   metaDataRef,
   changeRunningMode,
+  step,
+  setStep,
+  todayMode,
+  setTodayMode,
 }: UseHandDetectionType) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  // ハンドサイン推論結果に基づく処理
+  const handsignStep = useCallback(
+    (predictedClass: string) => {
+      setStep((prev) => {
+        // OKサイン検知でステップ２へ
+        if (prev === 'STEP1' && predictedClass === 'peace') {
+          return 'STEP2';
+        }
+
+        // 今日の気分を５段階評価で判定
+        if ((prev === 'STEP2' || prev === 'STEP3') && predictedClass === 'peace') {
+          setTodayMode('5');
+          return 'STEP3';
+        }
+        if ((prev === 'STEP2' || prev === 'STEP3') && predictedClass === 'other') {
+          setTodayMode('1');
+          return 'STEP3';
+        }
+
+        return prev; // 変更なし
+      });
+    },
+    [setStep, setTodayMode]
+  );
 
   // videoがON時のループ処理
   const predict = useCallback(async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const lm = landmarkerRef.current;
+    // 必要な要素が揃っていなければ抜ける
     if (!video || !canvas || !lm) return;
+
+    // 再生できる状態でなければ抜ける
+    if (!isRunning || video.paused || video.ended || video.readyState < 2) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -59,15 +95,18 @@ export function useHandDetection({
       const output = mathUtils.postprocess(res);
       const predictedClass = runModelUtils.getPredictedClass(output, metaData.labels);
       console.log('予測結果:', predictedClass);
+
       if (predictedClass === null) {
         console.log('予測に失敗しました');
         return;
       }
+      // 推論結果に基づくステップ処理
+      handsignStep(predictedClass);
     }
     ctx.restore();
 
     rafRef.current = requestAnimationFrame(predict);
-  }, []);
+  }, [isRunning, handsignStep]);
 
   // isRunning=true(ループ開始時)の effect
   useEffect(() => {
@@ -117,22 +156,36 @@ export function useHandDetection({
       await video.play();
       webComUtils.fitSizeCanvas(canvas, video);
 
-      await changeRunningMode('VIDEO');
       setIsRunning(true);
+      setStep('STEP1');
+      await changeRunningMode('VIDEO');
     } catch (e) {
       console.error('Failed to start webcam', e);
       setIsRunning(false);
     }
-  }, [ready]); // ready が true になることを期待するため
+  }, [ready, setStep]); // ready が true になることを期待するため
 
   // カメラ停止処理
   const handleOffCamera = useCallback(async () => {
+    // 推論前なら「IDLE」、推論後なら「FINISH」
+    setStep(todayMode ? 'FINISH' : 'IDLE');
     setIsRunning(false);
+
+    // canvasクリア
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    }
+
+    // アニメーションフレームを止める
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
 
+    // ビデオストリームを停止
     if (videoRef.current) {
       try {
         videoRef.current.pause();
@@ -141,8 +194,22 @@ export function useHandDetection({
         console.error('Failed to stop webcam:', e);
       }
     }
-    await changeRunningMode('IMAGE');
-  }, []);
+    // 手の骨格モデルを画像モードに戻す
+    // await changeRunningMode('IMAGE');
+  }, [todayMode]);
+
+  // エスケープキーでもカメラ停止
+  useEffect(() => {
+    const handleEscape = (event: { key: string }) => {
+      if (isRunning && event.key === 'Escape') {
+        handleOffCamera();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isRunning, todayMode, setStep]);
 
   return {
     videoRef,

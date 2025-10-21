@@ -13,7 +13,7 @@ export function useHandLandmarker({ canvasRef }: UseHandLandmarkerType) {
   const runningModeRef = useRef<'IMAGE' | 'VIDEO'>('IMAGE');
   const [ready, setReady] = useState(false);
 
-  // モデルのロード
+  // 手の骨格モデルのロード
   useEffect(() => {
     let mounted = true;
     (async () => {

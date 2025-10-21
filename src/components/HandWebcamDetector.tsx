@@ -3,17 +3,18 @@ import { useHandDetection } from '@/hooks/useHandDetection';
 import { useHandLandmarker } from '@/hooks/useHandLandmarker';
 import { useEffect, useRef, useState } from 'react';
 import { runModelUtils } from '@/utils';
-import { MetadataType } from '@/type';
+import { MetadataType, StepType, TodayModeType } from '@/type';
 import { InferenceSession } from 'onnxruntime-web';
+import StepContent from './StepContent';
+import StepFinish from './StepFinish';
 
 export default function HandWebcamDetector() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  // step0: idle
-  // step1: isRunningがtrueでSTEP1に切り替わる。「今日の気分を５段階で表してね。5が最も調子が良いよ」というテキストがcanvasに表示される
-  // step3: ハンドサインを検知後、クッキーに保存。今日の気分を記録しました（finish）
+
   const handsignModelRef = useRef<InferenceSession | null>(null);
   const metaDataRef = useRef<MetadataType | null>(null);
-  const [step, setStep] = useState<'IDLE' | 'STEP1' | 'FINISH'>('IDLE');
+  const [step, setStep] = useState<StepType>('IDLE');
+  const [todayMode, setTodayMode] = useState<TodayModeType | null>(null);
 
   const { landmarkerRef, ready, changeRunningMode } = useHandLandmarker({ canvasRef });
   const { videoRef, isRunning, handleOnCamera, handleOffCamera } = useHandDetection({
@@ -23,9 +24,13 @@ export default function HandWebcamDetector() {
     handsignModelRef,
     metaDataRef,
     changeRunningMode,
+    step,
+    setStep,
+    todayMode,
+    setTodayMode,
   });
 
-  // モデルのロード
+  // ハンドサインモデルのロード
   useEffect(() => {
     (async () => {
       try {
@@ -40,6 +45,7 @@ export default function HandWebcamDetector() {
 
   return (
     <Stack spaceY={4} alignItems="center">
+      {!isRunning && step === 'FINISH' && <StepFinish todayMode={todayMode} />}
       {isRunning ? (
         <Button onClick={handleOffCamera}>終了</Button>
       ) : (
@@ -51,6 +57,7 @@ export default function HandWebcamDetector() {
       <Stack position={'relative'}>
         <video ref={videoRef} id="webcam" autoPlay playsInline muted />
         <canvas ref={canvasRef} id="output_canvas" />
+        {isRunning && <StepContent step={step} todayMode={todayMode} />}
       </Stack>
     </Stack>
   );
