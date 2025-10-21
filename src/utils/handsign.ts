@@ -30,7 +30,7 @@ export function preprocessFromLandmarks(
     paramter.y,
     paramter.z,
   ]);
-
+  console.log('表示している手:', handedness);
   // 1) 幾何正規化（左右統一・原点平行移動・スケール正規化・フラット化）
   const x = normalizeLandmarks(pts, {
     flipIfRight: true,
@@ -57,7 +57,8 @@ export function normalizeLandmarks(
   const pts = lmXYZ.map((row) => row.slice());
 
   // 左右統一（画像座標系で x を反転）
-  if (opts?.flipIfRight && opts.handednessLabel === 'Right') {
+  // TODO:推論の時間違えて、右左逆になっている（撮影カメラで反転しわすれた）
+  if (opts?.flipIfRight && opts.handednessLabel === 'Left') {
     for (let i = 0; i < pts.length; i++) {
       pts[i][0] = 1.0 - pts[i][0];
     }
@@ -91,7 +92,7 @@ export function normalizeLandmarks(
   return flat;
 }
 
-/** (x - mean) / scale をスカラーまたは要素ごとに適用 */
+/** 正規化 (x - mean) / scale を要素ごとに適用 */
 const standardizeVector = (x: number[], mean: number[], scale: number[]): Tensor => {
   const N = x.length;
   const out = new Array<number>(N);

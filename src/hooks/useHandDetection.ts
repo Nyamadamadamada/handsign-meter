@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { mathUtils, runModelUtils, webComUtils } from '@/utils';
-import { MetadataType, StepType, TodayModeType } from '@/type';
+import { isTodayModeType, MetadataType, StepType, TodayModeType } from '@/type';
 import { preprocessFromLandmarks } from '@/utils/handsign';
 import { InferenceSession } from 'onnxruntime-web';
+import { prev } from '@zag-js/utils';
 
 type UseHandDetectionType = {
   landmarkerRef: React.MutableRefObject<any>;
@@ -40,19 +41,15 @@ export function useHandDetection({
   // ハンドサイン推論結果に基づく処理
   const handsignStep = useCallback(
     (predictedClass: string) => {
+      if (!metaDataRef.current) return;
       setStep((prev) => {
-        // OKサイン検知でステップ２へ
-        if (prev === 'STEP1' && predictedClass === 'peace') {
+        // グッジョブ検知でステップ２へ
+        if (prev === 'STEP1' && predictedClass === 'good') {
           return 'STEP2';
         }
-
         // 今日の気分を５段階評価で判定
-        if ((prev === 'STEP2' || prev === 'STEP3') && predictedClass === 'peace') {
-          setTodayMode('5');
-          return 'STEP3';
-        }
-        if ((prev === 'STEP2' || prev === 'STEP3') && predictedClass === 'other') {
-          setTodayMode('1');
+        if ((prev === 'STEP2' || prev === 'STEP3') && isTodayModeType(predictedClass)) {
+          setTodayMode(predictedClass);
           return 'STEP3';
         }
 
@@ -88,7 +85,7 @@ export function useHandDetection({
       webComUtils.drawHands(ctx, results.landmarks);
       // ハンドサインの推論
       const landmarks = results?.landmarks[0];
-      const handedness = results.handedness.categoryName;
+      const handedness = results?.handedness[0][0].categoryName;
       const x63 = preprocessFromLandmarks(landmarks, handedness, metaData.scalerMean, metaData.scalerScale);
       // 推論実行
       const [res, _] = await runModelUtils.runModel(handsignModel, x63);
