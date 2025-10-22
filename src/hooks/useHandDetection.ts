@@ -33,8 +33,9 @@ export function useHandDetection({
   setTodayMode,
 }: UseHandDetectionType) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const animeIDRef = useRef<number | null>(null); // requestAnimationFrameのID管理
   const [isRunning, setIsRunning] = useState(false);
+
   // ハンドサイン推論結果に基づく処理
   const handsignStep = useCallback(
     (predictedClass: string) => {
@@ -67,9 +68,13 @@ export function useHandDetection({
     // 再生できる状態でなければ抜ける
     if (!isRunning || video.paused || video.ended || video.readyState < 2) return;
 
+    // Canvas描画コンテキストをリセット
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // 手のランドマーク検出(MediaPipe)
     const ts = performance.now();
     const results = lm.detectForVideo(video, ts);
 
@@ -77,6 +82,9 @@ export function useHandDetection({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const metaData = metaDataRef.current;
     const handsignModel = handsignModelRef.current;
+
+    // ランドマークが検出され、メタデータとモデルが揃っていれば推論実行
+    // ここの処理を外だしすると精度が悪くなる（原因不明）
     if (results?.landmarks?.length && metaData && handsignModel) {
       // 手のランドマーク描画
       webComUtils.drawHands(ctx, results.landmarks);
@@ -98,24 +106,24 @@ export function useHandDetection({
     }
     ctx.restore();
 
-    rafRef.current = requestAnimationFrame(predict);
+    animeIDRef.current = requestAnimationFrame(predict);
   }, [isRunning, handsignStep]);
 
   // isRunning=true(ループ開始時)の effect
   useEffect(() => {
     if (!isRunning) return;
-    rafRef.current = requestAnimationFrame(predict);
+    animeIDRef.current = requestAnimationFrame(predict);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
+      if (animeIDRef.current != null) cancelAnimationFrame(animeIDRef.current);
+      animeIDRef.current = null;
     };
   }, [isRunning, predict]);
 
   // アンマウント時の最終クリーンアップ
   useEffect(() => {
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
+      if (animeIDRef.current != null) cancelAnimationFrame(animeIDRef.current);
+      animeIDRef.current = null;
       if (videoRef.current) {
         try {
           webComUtils.stopStreamedVideo(videoRef.current);
@@ -173,9 +181,9 @@ export function useHandDetection({
     }
 
     // アニメーションフレームを止める
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
+    if (animeIDRef.current != null) {
+      cancelAnimationFrame(animeIDRef.current);
+      animeIDRef.current = null;
     }
 
     // ビデオストリームを停止

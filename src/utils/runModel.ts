@@ -59,34 +59,3 @@ export const getPredictedClass = (output: Float32Array, labels: { [key: string]:
   const index = output.reduce((argmax, n, i) => (n > output[argmax] ? i : argmax), 0);
   return labels[index.toString()];
 };
-
-// 画像の前処理
-// 28x28のグレースケールに変換（MNISTは1x28x28、NCHW）
-export const preprocess = (ctx: CanvasRenderingContext2D, sctx: CanvasRenderingContext2D): Tensor => {
-  const srcCanvas = ctx.canvas as HTMLCanvasElement;
-
-  // 白でクリアしてから元キャンバスを 28x28 に縮小描画
-  sctx.save();
-  sctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, 0, 0, 28, 28);
-  sctx.restore();
-
-  // 画素を取得
-  const imageData = sctx.getImageData(0, 0, 28, 28);
-  const { data } = imageData; // RGBA RGBA ...
-
-  // MNIST: 1x28x28 (NCHW)
-  const input = new Float32Array(28 * 28);
-
-  for (let i = 0, j = 0; i < data.length; i += 4, j += 1) {
-    // グレースケール（単純平均でもOKだが一応加重平均にしておく）
-    const r = data[i],
-      g = data[i + 1],
-      b = data[i + 2];
-    const gray = 0.299 * r + 0.587 * g + 0.114 * b; // 0..255
-
-    // 0..1 正規化 & 反転（白背景/黒文字 → 黒背景/白文字）
-    input[j] = 1 - gray / 255;
-  }
-
-  return new Tensor('float32', input, [1, 1, 28, 28]);
-};
