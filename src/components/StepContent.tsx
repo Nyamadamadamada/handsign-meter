@@ -19,7 +19,7 @@ const StepContent = ({ step, todayMode }: Props) => {
       {step === 'STEP1' && (
         <>
           <Text>準備ができたらグッジョブを出して!</Text>
-          <Image className="pop-once" width="1/3" marginTop={'10%'} src="img/ok_icon.png" alt="グッジョブアイコン" />
+          <Image className="pop-once" width="1/2" marginTop={'10%'} src="img/ok_icon.png" alt="グッジョブアイコン" />
         </>
       )}
       {step === 'STEP2' && (

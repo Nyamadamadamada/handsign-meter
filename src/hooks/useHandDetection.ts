@@ -88,7 +88,6 @@ export function useHandDetection({
       const [res, _] = await runModelUtils.runModel(handsignModel, x63);
       const output = mathUtils.postprocess(res);
       const predictedClass = runModelUtils.getPredictedClass(output, metaData.labels);
-      console.log('予測結果:', predictedClass);
 
       if (predictedClass === null) {
         console.log('予測に失敗しました');
@@ -188,8 +187,6 @@ export function useHandDetection({
         console.error('Failed to stop webcam:', e);
       }
     }
-    // 手の骨格モデルを画像モードに戻す
-    // await changeRunningMode('IMAGE');
   }, [todayMode]);
 
   // エスケープキーでもカメラ停止

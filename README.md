@@ -1,6 +1,10 @@
 # 今日の気分を５本指で表現しよう！
 
-<img src="./output.gif" width="70%" />
+<img src="./output.gif" width="50%" />
+
+https://nyamadamadamada.github.io/handsign-meter/
+
+### Zenn の記事
 
 ## 環境構築
 
@@ -30,20 +34,3 @@ git push origin --tags
 GitHub > Environments > Configure github-pages の
 
 「Deployment branches and tags」を「No restriction」にする。
-
-## 参照
-
-ウェブ上で MediaPipe を用いて機械学習を行う際の 7 つの注意点
-https://developers.googleblog.com/ja/7-dos-and-donts-of-using-ml-on-the-web-with-mediapipe/
-
-手のランドマーク検出ガイド（ウェブ用）
-https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker/web_js?utm_source=chatgpt.com&hl=ja
-
-TensorFlow.js を使ったリアルタイムポーズ認識
-https://ics.media/entry/240910/#top
-
-DrawingUtils class
-https://ai.google.dev/edge/api/mediapipe/js/tasks-vision.drawingutils
-
-Python で画像認識　 MediaPipe を試す　-その 3-
-https://eight-engineering-blog.com/
